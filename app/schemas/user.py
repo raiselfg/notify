@@ -15,6 +15,11 @@ class UserCreate(BaseModel):
     )
 
 
+class UserLogin(BaseModel):
+    login: str = Field(min_length=1, max_length=32)
+    password: str = Field(min_length=1, max_length=128)
+
+
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
