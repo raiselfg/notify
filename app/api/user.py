@@ -1,13 +1,12 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import hash_password
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserRead
+from app.services.user import LoginAlreadyExistsError, UserService
 
 router = APIRouter(
     prefix="/users",
@@ -27,23 +26,12 @@ async def create_user(
         Depends(get_db),
     ],
 ) -> User:
-    user = User(
-        login=data.login,
-        password_hash=hash_password(data.password),
-    )
-
-    session.add(user)
+    user_service = UserService(session)
 
     try:
-        await session.commit()
-    except IntegrityError as err:
-        await session.rollback()
-
+        return await user_service.create_user(data)
+    except LoginAlreadyExistsError as err:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Login already exists",
         ) from err
-
-    await session.refresh(user)
-
-    return user
