@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install \
+            ruff \
+            pyright \
+            pytest \
+            pytest-asyncio
+          pip install \
+            fastapi \
+            sqlalchemy \
+            asyncpg \
+            alembic \
+            pydantic-settings \
+            "pwdlib[argon2]"
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format
+        run: ruff format --check .
+
+      - name: Pyright
+        run: pyright
+
+      - name: Tests
+        run: pytest

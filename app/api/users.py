@@ -36,13 +36,13 @@ async def create_user(
 
     try:
         await session.commit()
-    except IntegrityError:
+    except IntegrityError as err:
         await session.rollback()
 
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Login already exists",
-        )
+        ) from err
 
     await session.refresh(user)
 
