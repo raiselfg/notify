@@ -5,7 +5,7 @@ from starlette.concurrency import run_in_threadpool
 from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.repository.user import UserRepository
-from app.schemas.user import UserCreate, UserLogin
+from app.schemas.auth import AuthLogin, AuthRegister
 
 
 class LoginAlreadyExistsError(Exception):
@@ -16,13 +16,13 @@ class InvalidCredentialsError(Exception):
     pass
 
 
-class UserService:
+class AuthService:
     def __init__(self, session: AsyncSession):
         self._session = session
-        self._user_repository = UserRepository(session)
+        self._auth_repository = UserRepository(session)
 
-    async def create_user(self, data: UserCreate) -> User:
-        existing_user = await self._user_repository.get_by_login(data.login)
+    async def register(self, data: AuthRegister) -> User:
+        existing_user = await self._auth_repository.get_by_login(data.login)
 
         if existing_user is not None:
             raise LoginAlreadyExistsError
@@ -31,7 +31,7 @@ class UserService:
 
         user = User(login=data.login, password_hash=hashed_password)
 
-        self._user_repository.add(user)
+        self._auth_repository.add(user)
 
         try:
             await self._session.commit()
@@ -43,8 +43,8 @@ class UserService:
 
         return user
 
-    async def login(self, data: UserLogin) -> User:
-        existing_user = await self._user_repository.get_by_login(data.login)
+    async def login(self, data: AuthLogin) -> User:
+        existing_user = await self._auth_repository.get_by_login(data.login)
 
         if existing_user is None:
             raise InvalidCredentialsError

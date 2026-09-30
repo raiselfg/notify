@@ -6,8 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import verify_password
 from app.models.user import User
-from app.schemas.user import UserCreate
-from app.services.user import LoginAlreadyExistsError, UserService
+from app.services.auth import AuthRegister, AuthService, LoginAlreadyExistsError
 
 
 def make_session(existing_user: User | None = None) -> AsyncMock:
@@ -20,9 +19,9 @@ def make_session(existing_user: User | None = None) -> AsyncMock:
 
 async def test_registration_hashes_password() -> None:
     session = make_session()
-    data = UserCreate(login="alice", password="a long test password")
+    data = AuthRegister(login="alice", password="a long test password")
 
-    user = await UserService(session).create_user(data)
+    user = await AuthService(session).register(data)
 
     assert user.login == data.login
     assert user.password_hash != data.password
@@ -36,8 +35,8 @@ async def test_existing_login_is_rejected() -> None:
     session = make_session(User(login="alice", password_hash="existing"))
 
     with pytest.raises(LoginAlreadyExistsError):
-        await UserService(session).create_user(
-            UserCreate(login="alice", password="a long test password")
+        await AuthService(session).register(
+            AuthRegister(login="alice", password="a long test password")
         )
 
     session.add.assert_not_called()
@@ -49,8 +48,8 @@ async def test_conflicting_registration_rolls_back() -> None:
     session.commit.side_effect = IntegrityError("insert", {}, Exception("conflict"))
 
     with pytest.raises(LoginAlreadyExistsError):
-        await UserService(session).create_user(
-            UserCreate(login="alice", password="a long test password")
+        await AuthService(session).register(
+            AuthRegister(login="alice", password="a long test password")
         )
 
     session.rollback.assert_awaited_once()
