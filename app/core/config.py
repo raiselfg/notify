@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     db_name: str
     db_user: str
     db_password: str
+    auth_session_ttl_days: int
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -1,9 +1,19 @@
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.core.security import hash_password, verify_password
+from app.core.config import settings
+from app.core.security import (
+    generate_session_token,
+    hash_password,
+    hash_session_token,
+    verify_password,
+)
+from app.models.session import AuthSession
 from app.models.user import User
+from app.repository.session import SessionRepository
 from app.repository.user import UserRepository
 from app.schemas.auth import AuthLogin, AuthRegister
 
@@ -16,12 +26,17 @@ class InvalidCredentialsError(Exception):
     pass
 
 
+class SessionNotExist(Exception):
+    pass
+
+
 class AuthService:
     def __init__(self, session: AsyncSession):
         self._session = session
         self._auth_repository = UserRepository(session)
+        self._session_repository = SessionRepository(session)
 
-    async def register(self, data: AuthRegister) -> User:
+    async def register(self, data: AuthRegister) -> str:
         existing_user = await self._auth_repository.get_by_login(data.login)
 
         if existing_user is not None:
@@ -34,16 +49,22 @@ class AuthService:
         self._auth_repository.add(user)
 
         try:
-            await self._session.commit()
+            await self._session.flush()
         except IntegrityError as err:
             await self._session.rollback()
             raise LoginAlreadyExistsError from err
 
-        await self._session.refresh(user)
+        session_token = self._create_session(user)
 
-        return user
+        try:
+            await self._session.commit()
+        except Exception:
+            await self._session.rollback()
+            raise
 
-    async def login(self, data: AuthLogin) -> User:
+        return session_token
+
+    async def login(self, data: AuthLogin) -> str:
         existing_user = await self._auth_repository.get_by_login(data.login)
 
         if existing_user is None:
@@ -58,4 +79,22 @@ class AuthService:
         if not is_valid_password:
             raise InvalidCredentialsError
 
-        return existing_user
+        session_token = self._create_session(existing_user)
+
+        await self._session.commit()
+
+        return session_token
+
+    def _create_session(self, user: User) -> str:
+        token = generate_session_token()
+        token_hash = hash_session_token(token)
+
+        expires_at = datetime.now(UTC) + timedelta(days=settings.auth_session_ttl_days)
+
+        auth_session = AuthSession(
+            token_hash=token_hash, user_id=user.id, expires_at=expires_at
+        )
+
+        self._session_repository.add(auth_session)
+
+        return token
