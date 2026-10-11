@@ -58,6 +58,9 @@ class AuthService:
 
         try:
             await self._session.commit()
+        except IntegrityError as err:
+            await self._session.rollback()
+            raise LoginAlreadyExistsError from err
         except Exception:
             await self._session.rollback()
             raise
@@ -84,6 +87,32 @@ class AuthService:
         await self._session.commit()
 
         return session_token
+
+    async def get_current_user(self, token: str) -> User:
+        auth_session = await self._session_repository.get_by_token_hash(
+            hash_session_token(token)
+        )
+
+        if auth_session is None or auth_session.expires_at <= datetime.now(UTC):
+            raise SessionNotExist
+
+        user = await self._auth_repository.get_by_id(auth_session.user_id)
+
+        if user is None:
+            raise SessionNotExist
+
+        return user
+
+    async def revoke_session(self, token: str) -> None:
+        auth_session = await self._session_repository.get_by_token_hash(
+            hash_session_token(token)
+        )
+
+        if auth_session is None:
+            return
+
+        await self._session_repository.delete(auth_session)
+        await self._session.commit()
 
     def _create_session(self, user: User) -> str:
         token = generate_session_token()
