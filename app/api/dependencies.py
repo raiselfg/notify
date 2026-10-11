@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models.user import User
 from app.services.auth import AuthService, SessionNotExist
+from app.services.task import TaskService
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -18,6 +19,15 @@ def get_auth_service(
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+
+
+def get_task_service(
+    session: Annotated[AsyncSession, Depends(get_db)],
+) -> TaskService:
+    return TaskService(session)
+
+
+TaskServiceDep = Annotated[TaskService, Depends(get_task_service)]
 
 
 async def get_auth_token(
