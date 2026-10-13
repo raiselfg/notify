@@ -1,7 +1,7 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import APIKeyCookie
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -9,7 +9,19 @@ from app.models.user import User
 from app.services.auth import AuthService, SessionNotExist
 from app.services.task import TaskService
 
-bearer_scheme = HTTPBearer(auto_error=False)
+SESSION_COOKIE_NAME = "__Host-session"
+cookie_scheme = APIKeyCookie(name=SESSION_COOKIE_NAME, auto_error=False)
+
+
+async def verify_request_origin(request: Request) -> None:
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
+    expected_origin = f"{request.url.scheme}://{request.url.netloc}"
+    if request.headers.get("origin") != expected_origin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid request origin",
+        )
 
 
 def get_auth_service(
@@ -31,19 +43,18 @@ TaskServiceDep = Annotated[TaskService, Depends(get_task_service)]
 
 
 async def get_auth_token(
-    credentials: Annotated[
-        HTTPAuthorizationCredentials | None,
-        Depends(bearer_scheme),
+    token: Annotated[
+        str | None,
+        Depends(cookie_scheme),
     ],
 ) -> str:
-    if credentials is None or credentials.scheme.lower() != "bearer":
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    return credentials.credentials
+    return token
 
 
 AuthTokenDep = Annotated[str, Depends(get_auth_token)]
@@ -59,7 +70,6 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired session",
-            headers={"WWW-Authenticate": "Bearer"},
         ) from err
 
 
