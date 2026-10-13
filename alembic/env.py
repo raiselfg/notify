@@ -21,7 +21,7 @@ config.set_main_option(
     "sqlalchemy.url",
     settings.database_url.render_as_string(
         hide_password=False,
-    ),
+    ).replace("%", "%%"),
 )
 
 

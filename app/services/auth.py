@@ -6,6 +6,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.core.config import settings
 from app.core.security import (
+    DUMMY_PASSWORD_HASH,
     generate_session_token,
     hash_password,
     hash_session_token,
@@ -70,16 +71,17 @@ class AuthService:
     async def login(self, data: AuthLogin) -> str:
         existing_user = await self._auth_repository.get_by_login(data.login)
 
-        if existing_user is None:
-            raise InvalidCredentialsError
-
         is_valid_password = await run_in_threadpool(
             verify_password,
             password=data.password,
-            password_hash=existing_user.password_hash,
+            password_hash=(
+                existing_user.password_hash
+                if existing_user is not None
+                else DUMMY_PASSWORD_HASH
+            ),
         )
 
-        if not is_valid_password:
+        if existing_user is None or not is_valid_password:
             raise InvalidCredentialsError
 
         session_token = self._create_session(existing_user)

@@ -58,6 +58,7 @@ class TaskService:
                 )
 
         await self._save()
+        await self._session.refresh(task)
         return task
 
     async def complete(self, user_id: UUID, task_id: UUID) -> ReminderTask:
@@ -65,6 +66,7 @@ class TaskService:
         if task.completed_at is None:
             task.completed_at = datetime.now(UTC)
             await self._save()
+            await self._session.refresh(task)
         return task
 
     async def delete(self, user_id: UUID, task_id: UUID) -> None:

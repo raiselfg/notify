@@ -110,3 +110,20 @@ async def test_expired_session_token_is_rejected() -> None:
         await AuthService(session).get_current_user("expired-session-token")
 
     session.execute.assert_awaited_once()
+
+
+async def test_unknown_login_still_checks_password(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services.auth import AuthLogin, InvalidCredentialsError
+
+    verifier = AsyncMock(return_value=True)
+    monkeypatch.setattr("app.services.auth.run_in_threadpool", verifier)
+    session = make_session()
+    with pytest.raises(InvalidCredentialsError):
+        await AuthService(session).login(
+            AuthLogin(login="unknown", password="test-password")
+        )
+    verifier.assert_awaited_once()
+    session.add.assert_not_called()
+    session.commit.assert_not_awaited()
