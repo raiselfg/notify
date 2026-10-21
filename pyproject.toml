@@ -13,6 +13,9 @@ dependencies = [
     "sqlalchemy[asyncio]",
     "uvicorn",
     "cryptography>=50.0.2",
+    "pywebpush>=2.5.0",
+    "aiohttp>=3.14.5",
+    "py-vapid>=1.9.6",
 ]
 
 [dependency-groups]

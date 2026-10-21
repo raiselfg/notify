@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     vapid_subject: str | None = None
     push_ttl_seconds: int = Field(default=3600, ge=1, le=3600)
     push_timeout_seconds: float = Field(default=10, gt=0, allow_inf_nan=False)
+    push_max_concurrency: int = Field(default=10, ge=1, le=100)
 
     model_config = SettingsConfigDict(
         env_file=".env",
