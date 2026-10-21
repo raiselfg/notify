@@ -17,11 +17,15 @@ class TaskRepository:
         self,
         task_id: UUID,
         user_id: UUID,
+        *,
+        for_update: bool = False,
     ) -> ReminderTask | None:
         stmt = select(ReminderTask).where(
             ReminderTask.id == task_id,
             ReminderTask.user_id == user_id,
         )
+        if for_update:
+            stmt = stmt.with_for_update().execution_options(populate_existing=True)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 

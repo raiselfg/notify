@@ -32,8 +32,12 @@ class TaskService:
     async def list_for_user(self, user_id: UUID) -> list[ReminderTask]:
         return await self._repository.get_all_by_user_id(user_id)
 
-    async def get(self, user_id: UUID, task_id: UUID) -> ReminderTask:
-        task = await self._repository.get_one_by_user_id(task_id, user_id)
+    async def get(
+        self, user_id: UUID, task_id: UUID, *, for_update: bool = False
+    ) -> ReminderTask:
+        task = await self._repository.get_one_by_user_id(
+            task_id, user_id, for_update=for_update
+        )
         if task is None:
             raise TaskNotFoundError
         return task
@@ -44,13 +48,14 @@ class TaskService:
         task_id: UUID,
         data: TaskUpdate,
     ) -> ReminderTask:
-        task = await self.get(user_id, task_id)
+        task = await self.get(user_id, task_id, for_update=True)
         updates = data.model_dump(exclude_unset=True, exclude_none=True)
 
         if "title" in updates:
             task.title = updates["title"]
 
         if "interval_minutes" in updates:
+            task.schedule_version += 1
             task.interval_minutes = updates["interval_minutes"]
             if task.completed_at is None:
                 task.next_reminder_at = datetime.now(UTC) + timedelta(
@@ -62,7 +67,7 @@ class TaskService:
         return task
 
     async def complete(self, user_id: UUID, task_id: UUID) -> ReminderTask:
-        task = await self.get(user_id, task_id)
+        task = await self.get(user_id, task_id, for_update=True)
         if task.completed_at is None:
             task.completed_at = datetime.now(UTC)
             await self._save()
@@ -70,7 +75,7 @@ class TaskService:
         return task
 
     async def delete(self, user_id: UUID, task_id: UUID) -> None:
-        task = await self.get(user_id, task_id)
+        task = await self.get(user_id, task_id, for_update=True)
         await self._repository.delete(task)
         await self._save()
 

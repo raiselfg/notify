@@ -8,6 +8,28 @@ jobs:
   quality:
     name: Quality checks
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: notify_test
+          POSTGRES_PASSWORD: fake-test-password
+          POSTGRES_DB: notify_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U notify_test -d notify_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: notify_test
+      DB_USER: notify_test
+      DB_PASSWORD: fake-test-password
+      AUTH_SESSION_TTL_DAYS: 30
+      TEST_DATABASE_URL: postgresql+asyncpg://notify_test:fake-test-password@localhost:5432/notify_test
 
     steps:
       - name: Checkout repository

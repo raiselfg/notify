@@ -24,6 +24,9 @@ class ReminderTask(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
 
     interval_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
+    schedule_version: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
 
     next_reminder_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     push_ttl_seconds: int = Field(default=3600, ge=1, le=3600)
     push_timeout_seconds: float = Field(default=10, gt=0, allow_inf_nan=False)
     push_max_concurrency: int = Field(default=10, ge=1, le=100)
+    push_poll_seconds: float = Field(default=5, gt=0, allow_inf_nan=False)
+    push_max_attempts: int = Field(default=5, ge=1, le=20)
 
     model_config = SettingsConfigDict(
         env_file=".env",
