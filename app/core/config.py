@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     db_user: str
     db_password: str
     auth_session_ttl_days: int
+    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
     vapid_private_key: SecretStr | None = None
     vapid_public_key: str | None = None
     vapid_subject: str | None = None
@@ -31,6 +32,25 @@ class Settings(BaseSettings):
         extra="ignore",
         hide_input_in_errors=True,
     )
+
+    @model_validator(mode="after")
+    def validate_cors_origins(self) -> Self:
+        for origin in self.cors_origins:
+            parsed = urlsplit(origin)
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.hostname
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+                or any(char.isspace() for char in origin)
+            ):
+                raise ValueError("CORS origins must be explicit HTTP or HTTPS origins")
+            if parsed.port is not None and not 1 <= parsed.port <= 65535:
+                raise ValueError("Invalid CORS origin port")
+        return self
 
     @model_validator(mode="after")
     def validate_vapid(self) -> Self:

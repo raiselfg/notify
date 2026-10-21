@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import APIKeyCookie
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.db.session import get_db
 from app.models.user import User
 from app.services.auth import AuthService, SessionNotExist
@@ -17,7 +18,8 @@ async def verify_request_origin(request: Request) -> None:
     if request.method in {"GET", "HEAD", "OPTIONS"}:
         return
     expected_origin = f"{request.url.scheme}://{request.url.netloc}"
-    if request.headers.get("origin") != expected_origin:
+    origin = request.headers.get("origin")
+    if origin != expected_origin and origin not in settings.cors_origins:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid request origin",
